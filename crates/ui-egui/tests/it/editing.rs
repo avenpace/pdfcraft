@@ -3302,7 +3302,7 @@ fn source_font_fixture_with_text(body: &str) -> Vec<u8> {
         "<< /Type /Font /Subtype /Type1 /BaseFont /Times-BoldItalic >>".into(),
         "<< /Type /Page /Parent 2 0 R /Contents 7 0 R /Resources << /Font << /F1 3 0 R /F2 5 0 R >> >> >>".into(),
         "<< /Type /Font /Subtype /Type1 /BaseFont /Courier-Oblique >>".into(),
-        "<< /Producer (PdfCraft) >>".into(),
+        "<< /Producer (ClawPDF) >>".into(),
         format!("<< /Length {} >>\nstream\n{body}\nendstream", body.len()),
     ];
     let mut out = b"%PDF-1.7\n".to_vec();

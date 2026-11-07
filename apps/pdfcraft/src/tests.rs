@@ -18,7 +18,7 @@ fn assert_window_stack_graph(root: &std::path::Path, name: &str, version: &str) 
     let package = locked_package(root, name);
     assert!(package.contains(&format!("\nversion = \"{version}\"\n")), "{name} must resolve to {version}: {package}");
     if let Some(source) = package.lines().find_map(|line| line.strip_prefix("source = ")) {
-        assert!(source.contains("github.com/storytold/"), "{name} must come from the reviewed storytold fork once published, not {source}");
+        assert!(source.contains("github.com/avenpace/"), "{name} must come from the reviewed storytold fork once published, not {source}");
         assert!(
             source.split(|c: char| !c.is_ascii_hexdigit()).any(|part| part.len() == 40),
             "{name} must pin the fork's 40-character revision, not {source}"
@@ -422,7 +422,7 @@ fn winit_carries_the_windows_11_monitor_scale_fix() {
     // The audited W1 hunk itself, not merely the file's presence: Windows 11 applies the
     // rect Windows suggests, while Windows 10 keeps the old adjustment.
     for marker in [
-        "PdfCraft patch: from Windows 11 (build 22000) on, apply the rect Windows suggests",
+        "ClawPDF patch: from Windows 11 (build 22000) on, apply the rect Windows suggests",
         "if !WIN10_BUILD_VERSION.is_some_and(|build| build < 22000) {",
         "new_outer_rect = suggested_rect;",
     ] {

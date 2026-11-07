@@ -325,10 +325,10 @@ fn a_job_names_its_title_and_owner_to_the_spooler() {
 
     let named = args_for("Q3 report: a/b=\"c\".pdf", None);
     assert_eq!(option(&named, "PMJobName").as_deref(), Some("Q3_report__a_b__c_.pdf"), "what lp can't be given becomes _");
-    assert_eq!(option(&named, "PMJobOwner").as_deref(), Some("PdfCraft"), "no owner known: the filter still gets one");
+    assert_eq!(option(&named, "PMJobOwner").as_deref(), Some("ClawPDF"), "no owner known: the filter still gets one");
 
     for nothing_left in ["", "   ", "見積書", "/:=\""] {
-        assert_eq!(option(&args_for(nothing_left, Some("")), "PMJobName").as_deref(), Some("PdfCraft"), "{nothing_left:?}");
+        assert_eq!(option(&args_for(nothing_left, Some("")), "PMJobName").as_deref(), Some("ClawPDF"), "{nothing_left:?}");
     }
     assert_eq!(option(&args_for("見積書2.pdf", None), "PMJobName").as_deref(), Some("___2.pdf"), "a part of it is kept");
     let long = option(&args_for(&format!("a{}", "é".repeat(200)), None), "PMJobName").unwrap_or_default();
@@ -339,8 +339,8 @@ fn a_job_names_its_title_and_owner_to_the_spooler() {
         assert_eq!(option(&args_for(title, None), "PMJobName").as_deref(), Some(name), "{title:?}");
     }
     for boolean in ["true", "TRUE", "false", "False"] {
-        assert_eq!(option(&args_for(boolean, Some(boolean)), "PMJobName").as_deref(), Some("PdfCraft"), "{boolean:?}");
-        assert_eq!(option(&args_for(boolean, Some(boolean)), "PMJobOwner").as_deref(), Some("PdfCraft"), "{boolean:?}");
+        assert_eq!(option(&args_for(boolean, Some(boolean)), "PMJobName").as_deref(), Some("ClawPDF"), "{boolean:?}");
+        assert_eq!(option(&args_for(boolean, Some(boolean)), "PMJobOwner").as_deref(), Some("ClawPDF"), "{boolean:?}");
     }
     assert_eq!(option(&args_for("true.pdf", None), "PMJobName").as_deref(), Some("true.pdf"), "only the bare word is a boolean");
 }

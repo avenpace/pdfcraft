@@ -70,7 +70,7 @@ fn saving_a_pdf_keeps_the_destinations_extended_attributes() {
     use rustix::fs::{XattrFlags, getxattr, setxattr};
     let dir = workdir("save-xattrs");
     let target = dir.join("a.pdf");
-    let tags = b"<plist version=\"1.0\"><array><string>PdfCraft\n6</string></array></plist>";
+    let tags = b"<plist version=\"1.0\"><array><string>ClawPDF\n6</string></array></plist>";
     let binary = b"\0\xffpdfcraft\0";
     let attributes: &[(&str, &[u8])] = &[("com.apple.metadata:_kMDItemUserTags", tags), ("com.pdfcraft.test", binary)];
     for (name, value) in attributes {

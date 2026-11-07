@@ -30,7 +30,7 @@ pub const LANGUAGES: &[(&str, &str)] = &[("en", "English")];
 pub enum OcrError {
     /// Shown to end users (release packages ship the models; a source build fetches them with
     /// `cargo xtask models`). The UI catalogs key this exact text.
-    #[error("the text recognition models are not installed (reinstall PdfCraft, or set PDFCRAFT_MODELS to the folder that holds them)")]
+    #[error("the text recognition models are not installed (reinstall ClawPDF, or set PDFCRAFT_MODELS to the folder that holds them)")]
     NoModels,
     #[error("loading {0}: {1}")]
     Load(String, String),
@@ -387,11 +387,11 @@ mod tests {
     fn finds_the_models_in_every_release_package_layout() {
         let base = std::env::temp_dir().join(format!("pdfcraft-ocr-layouts-{}", std::process::id()));
         let layouts = [
-            ("windows", "PdfCraft", "PdfCraft/models"),
-            ("macos", "PdfCraft.app/Contents/MacOS", "PdfCraft.app/Contents/Resources/models"),
+            ("windows", "ClawPDF", "ClawPDF/models"),
+            ("macos", "ClawPDF.app/Contents/MacOS", "ClawPDF.app/Contents/Resources/models"),
             ("linux-deb-rpm", "usr/bin", "usr/share/pdfcraft/models"),
             ("linux-tar", "pdfcraft-1.0.0-linux-x86_64/bin", "pdfcraft-1.0.0-linux-x86_64/share/pdfcraft/models"),
-            ("appimage", "PdfCraft.AppDir/usr/bin", "PdfCraft.AppDir/usr/share/pdfcraft/models"),
+            ("appimage", "ClawPDF.AppDir/usr/bin", "ClawPDF.AppDir/usr/share/pdfcraft/models"),
             ("flatpak", "app/bin", "app/share/pdfcraft/models"),
             ("freebsd", "usr/local/bin", "usr/local/share/pdfcraft/models"),
         ];
