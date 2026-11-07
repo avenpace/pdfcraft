@@ -36,6 +36,8 @@ macro_rules! tl_ctx {
 }
 pub mod canvas;
 mod chrome;
+#[cfg(target_arch = "wasm32")]
+mod clawku_pick;
 mod image_engine;
 pub use combine_grid::ThumbState as CombineThumb;
 pub use combine_ui::{Columns as CombineColumns, CombineView, Lock as CombineLock, SortKey};

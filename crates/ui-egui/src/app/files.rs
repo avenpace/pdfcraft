@@ -719,6 +719,10 @@ impl PdfCraftApp {
         // Browsers pick files asynchronously; the bytes arrive through `inbox`.
         #[cfg(target_arch = "wasm32")]
         {
+            // Clawku: opening goes through the host page's storage browser
+            if crate::clawku_pick::host_pick("pdfcraft", "document") {
+                return;
+            }
             let inbox = self.inbox.clone();
             let ctx = self.ctx.clone();
             wasm_bindgen_futures::spawn_local(async move {
