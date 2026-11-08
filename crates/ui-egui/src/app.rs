@@ -170,6 +170,7 @@ impl PdfCraftApp {
             os_events: None,
             host_save: None,
             host_dirty: None,
+            host_open_failed: None,
             close_request: None,
             save_prompt_button: Default::default(),
             save_prompt_seen: false,
@@ -507,6 +508,9 @@ impl eframe::App for PdfCraftApp {
         for (name, bytes) in arrived {
             if let Err(e) = self.open_bytes(&name, None, bytes) {
                 self.notify_fmt("Couldn't open {name}: {e}", &[("name", &name), ("e", &e.to_string())]);
+                if let Some(report) = self.host_open_failed.as_mut() {
+                    report(&name, &e.to_string());
+                }
             }
         }
         // Don't replace a pending prompt or import. A startup file may need its own password

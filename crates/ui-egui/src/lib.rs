@@ -111,7 +111,7 @@ use dialogs::protect;
 use dialogs::standards_ui;
 use dialogs::word_count_ui;
 pub use home::folders_ui;
-pub use hooks::{FailedInbox, HostDirtyFn, HostSaveFn, Inbox, OsEvent, OsEventsFn};
+pub use hooks::{FailedInbox, HostDirtyFn, HostOpenFailedFn, HostSaveFn, Inbox, OsEvent, OsEventsFn};
 use menus::tab_context;
 use panels::all_tools_ui;
 use panels::comments_panel;
@@ -449,6 +449,8 @@ pub struct PdfCraftApp {
     pub host_save: Option<HostSaveFn>,
     /// Reports unsaved work to the embedding page (web, see [`HostDirtyFn`]).
     pub host_dirty: Option<HostDirtyFn>,
+    /// Reports a file from the host page that couldn't be opened (web, see [`HostOpenFailedFn`]).
+    pub host_open_failed: Option<HostOpenFailedFn>,
     /// A pending "save changes?" question (closing a dirty tab or quitting).
     pub close_request: Option<CloseRequest>,
     /// The button of the "save changes?" question the keyboard has chosen; Save when it opens.

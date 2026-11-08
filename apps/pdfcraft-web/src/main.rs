@@ -69,6 +69,7 @@ fn main() {
                         bridge.listen(app.startup_inbox.clone(), cc.egui_ctx.clone());
                         app.host_save = Some(bridge.save_fn());
                         app.host_dirty = Some(bridge.dirty_fn());
+                        app.host_open_failed = Some(bridge.open_failed_fn());
                         bridge.post_ready();
                     } else if query_param("host").as_deref() == Some("parent") {
                         eframe::web_sys::console::warn_1(
@@ -226,6 +227,16 @@ mod host {
                     message(&[("type", "pdfcraft:save".into()), ("name", name.into()), ("saveAs", save_as.into()), ("bytes", buffer.clone().into())])
                         .ok_or_else(|| "couldn't build the message".to_string())?;
                 bridge.post(&m, Some(&buffer))
+            })
+        }
+
+        /// `pdfcraft:openFailed` `{ name, message }`: a file the parent sent couldn't be opened.
+        pub fn open_failed_fn(&self) -> pdfcraft_ui_egui::HostOpenFailedFn {
+            let bridge = self.clone();
+            Box::new(move |name: &str, why: &str| {
+                if let Some(m) = message(&[("type", "pdfcraft:openFailed".into()), ("name", name.into()), ("message", why.into())]) {
+                    let _ = bridge.post(&m, None);
+                }
             })
         }
 

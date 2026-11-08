@@ -25,3 +25,7 @@ pub type HostSaveFn = Box<dyn Fn(&str, &[u8], bool) -> Result<(), String>>;
 
 /// Told every frame whether any tab has unsaved work, so a host page can warn before leaving.
 pub type HostDirtyFn = Box<dyn FnMut(bool)>;
+
+/// Told when a file the host page sent couldn't be opened: `(name, why)` (Clawku shows it and
+/// keeps it on screen; the app's own toast is easy to miss, on a phone above all).
+pub type HostOpenFailedFn = Box<dyn FnMut(&str, &str)>;
