@@ -15,6 +15,9 @@ eframe = { workspace = true, features = ["default_fonts", "glow", "persistence",
 egui = { workspace = true, features = ["default_fonts", "monochrome_emoji_fonts"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
+craft-web-api = { git = "https://github.com/storytold/craft-libs", rev = "2e2312ddaf21bc3d85cd3395d0955c7d239306f6" }
+serde_json = "1"
+wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlCanvasElement", "HtmlElement", "Location", "Url", "UrlSearchParams", "Response", "Event", "MessageEvent", "EventTarget"] }
 js-sys = "0.3"

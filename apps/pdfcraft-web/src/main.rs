@@ -4,6 +4,9 @@
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
 #[cfg(target_arch = "wasm32")]
+mod api;
+
+#[cfg(target_arch = "wasm32")]
 fn main() {
     use eframe::wasm_bindgen::JsCast;
     use pdfcraft_ui_egui::PdfCraftApp;
@@ -75,6 +78,13 @@ fn main() {
                         eframe::web_sys::console::warn_1(
                             &"ClawPDF: ?host=parent needs a framing page on the same origin; saves download instead".into(),
                         );
+                    }
+                    // `?control`: `window.pdfcraft`, the page's command API (`api`), opt-in.
+                    if query_param("control").is_some() {
+                        let client = app.attach_control(&cc.egui_ctx);
+                        if let Err(e) = api::install(client) {
+                            eframe::web_sys::console::error_1(&e);
+                        }
                     }
                     Ok(Box::new(app))
                 }),
