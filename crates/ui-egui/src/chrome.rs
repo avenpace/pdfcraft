@@ -70,7 +70,13 @@ pub fn tab_strip(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                     app.combine_tab.focused = false;
                 }
                 // Reserve the three icon buttons, Discord and their gaps outside the scrolling tabs.
-                let controls_width = ui.fonts_mut(|f| f.layout_no_wrap("Community".into(), theme::medium(13.0), t.text).size().x)
+                // Phones: no Community button, so the tabs and Open have the room (Clawku)
+                let community_width = if ui.ctx().content_rect().width() < 600.0 {
+                    -20.0
+                } else {
+                    ui.fonts_mut(|f| f.layout_no_wrap("Community".into(), theme::medium(13.0), t.text).size().x)
+                };
+                let controls_width = community_width
                     + 3.0 * button
                     + 54.0
                     + window_controls::width(&controls.right);
@@ -310,7 +316,9 @@ pub fn tab_strip(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                         app.dialog = Some(Dialog::Shortcuts);
                     }
                     // One click to the community, from anywhere in the app.
-                    if widgets::ghost_button_sized(ui, "messages-square", "Community", tab_h).on_hover_text(pdfcraft_engine::links::DISCORD).clicked() {
+                    if ui.ctx().content_rect().width() >= 600.0
+                        && widgets::ghost_button_sized(ui, "messages-square", "Community", tab_h).on_hover_text(pdfcraft_engine::links::DISCORD).clicked()
+                    {
                         app.execute("help.discord");
                     }
                 });
