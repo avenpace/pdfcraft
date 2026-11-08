@@ -493,8 +493,11 @@ pub fn mode_bar(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
         .show(ui, |ui| {
             ui.horizontal_centered(|ui| {
                 ui.spacing_mut().item_spacing.x = 2.0;
+                // Phones: the command search (every tool and command) and the file buttons only;
+                // the menus and mode tabs don't fit beside them (Clawku).
+                let narrow = ui.ctx().content_rect().width() < 600.0;
                 // The menus, unless the native macOS menu bar has them.
-                if app.native_menu.is_none() {
+                if app.native_menu.is_none() && !narrow {
                     app.menu_bar_ui(ui);
                     ui.add_space(6.0);
                     ui.painter().vline(ui.cursor().left(), ui.max_rect().y_range().shrink(12.0), Stroke::new(1.0, t.divider));
@@ -503,6 +506,9 @@ pub fn mode_bar(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                 // Acrobat's mode bar has no Read tab: reading is what the viewer does with no tool
                 // in use. Read mode (the panes hidden) stays a View command and a default workspace.
                 for (mode, label) in [(Mode::AllTools, "All tools"), (Mode::Edit, "Edit"), (Mode::Convert, "Convert"), (Mode::Sign, "E-Sign")] {
+                    if narrow {
+                        break;
+                    }
                     if widgets::mode_tab(ui, tl!(label), app.mode == mode).clicked() {
                         app.switch_mode(mode, true);
                     }
@@ -531,7 +537,8 @@ pub fn mode_bar(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                         }
                     });
                     ui.add_space(8.0);
-                    if widgets::search_box(ui, tl!("Find tools and commands"), 260.0).clicked() {
+                    let search_w = if narrow { (ui.available_width() - 4.0).max(120.0) } else { 260.0 };
+                    if widgets::search_box(ui, tl!("Find tools and commands"), search_w).clicked() {
                         app.palette_open = true;
                     }
                 });
