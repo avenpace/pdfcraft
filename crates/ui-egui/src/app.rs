@@ -529,9 +529,14 @@ impl eframe::App for PdfCraftApp {
         {
             let startup = self.startup_inbox.lock().map(|mut q| std::mem::take(&mut *q)).unwrap_or_default();
             for (name, bytes) in startup {
-                let activate = !self.startup_superseded;
+                // A file the hosting page sent (Clawku) is what the person asked to open: it comes
+                // to the front even if they touched the app while it loaded.
+                let activate = !self.startup_superseded || self.host_open_failed.is_some();
                 if let Err(e) = self.open_bytes_with_focus(&name, None, bytes, activate) {
                     self.notify_fmt("Couldn't open {name}: {e}", &[("name", &name), ("e", &e)]);
+                    if let Some(report) = self.host_open_failed.as_mut() {
+                        report(&name, &e);
+                    }
                 }
             }
         }
