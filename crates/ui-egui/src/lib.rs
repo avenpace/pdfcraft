@@ -277,6 +277,9 @@ pub struct PdfCraftApp {
     mode_override: Option<Mode>,
     pub left: LeftPanel,
     pub left_open: bool,
+    /// The first frame looked at the window's width: on a phone the tools side starts closed,
+    /// so the document has the screen (Clawku).
+    narrow_checked: bool,
     pub right: Option<RightPanel>,
     /// The side panel F4 reopens: the one open last.
     pub(crate) last_right: RightPanel,

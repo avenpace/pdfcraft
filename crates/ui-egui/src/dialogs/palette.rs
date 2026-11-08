@@ -154,7 +154,8 @@ pub fn show(app: &mut PdfCraftApp, ctx: &egui::Context) {
         .fixed_pos(egui::pos2(screen.center().x, screen.top() + 96.0))
         .show(ctx, |ui| {
             egui::Frame::popup(ui.style()).corner_radius(CornerRadius::same(12)).inner_margin(egui::Margin::same(10)).show(ui, |ui| {
-                ui.set_width(560.0);
+                // Phones: as wide as the screen allows
+                ui.set_width(560.0_f32.min(screen.width() - 24.0).max(200.0));
                 ui.horizontal(|ui| {
                     ui.add(icons::image("search", 18.0, t.text_muted));
                     let r = ui

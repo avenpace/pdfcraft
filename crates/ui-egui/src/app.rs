@@ -79,6 +79,7 @@ impl PdfCraftApp {
             left: LeftPanel::AllTools,
             side_panels: Default::default(),
             left_open: true,
+            narrow_checked: false,
             right: None,
             last_right: RightPanel::Comments,
             right_before_read: None,
@@ -628,6 +629,13 @@ impl eframe::App for PdfCraftApp {
         if !self.fonts_ready {
             ctx.request_repaint();
             return;
+        }
+        // A phone-sized window: the tools side starts closed (the toolbar opens it).
+        if !self.narrow_checked {
+            self.narrow_checked = true;
+            if ctx.content_rect().width() < 600.0 {
+                self.left_open = false;
+            }
         }
         // Before any widget reads this frame's wheel input or draws.
         self.motion.begin_pass(&ctx, self.animation_effects);
