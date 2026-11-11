@@ -11,7 +11,8 @@ pub(crate) const SHARE: &str = "file.share";
 
 /// Commands hidden when hosted: ways to make or show another document or an empty app (Clawku
 /// makes and opens files), the recent list, closing the document, tab switching, and the
-/// standalone app's web pages and update check.
+/// standalone app's web pages and update check. Every `help.*` command is hidden too (see
+/// [`PdfCraftApp::hides_command`]): Clawku owns help.
 const HIDDEN_WHEN_HOSTED: &[&str] = &[
     "create.blank",
     "create.clipboard",
@@ -24,11 +25,6 @@ const HIDDEN_WHEN_HOSTED: &[&str] = &[
     "view.next_tab",
     "view.previous_tab",
     crate::menus::DOCUMENT,
-    "help.app_page",
-    "help.github",
-    "help.website",
-    "help.discord",
-    "help.check_updates",
     // Dead in a browser: they only say the web build can't do it yet.
     "create.images",
     "edit.attach",
@@ -45,11 +41,13 @@ const HIDDEN_ON_WEB: &[&str] = &["file.pin_folder", "sign.digital", "sign.certif
 impl PdfCraftApp {
     /// Whether the menus, palette, tool panels and hotbar leave `id` out, and running it does
     /// nothing: hidden when hosted, or unusable in a browser. File ▸ Share shows only when hosted.
+    /// Hosted, no help at all (shortcuts, links, About): Clawku owns help.
     pub(crate) fn hides_command(&self, id: &str) -> bool {
         if id == SHARE {
             return !self.hosted;
         }
-        (self.hosted && HIDDEN_WHEN_HOSTED.contains(&id)) || (cfg!(target_arch = "wasm32") && HIDDEN_ON_WEB.contains(&id))
+        (self.hosted && (id.starts_with("help.") || HIDDEN_WHEN_HOSTED.contains(&id)))
+            || (cfg!(target_arch = "wasm32") && HIDDEN_ON_WEB.contains(&id))
     }
 
     /// File ▸ Share: the host page shares the document (`pdfcraft:share`).
@@ -184,7 +182,7 @@ mod tests {
         {
             assert!(bar.find(&craft_menu::CommandRef::new(id)).is_none(), "{id} is hidden when hosted");
         }
-        for id in ["file.open", "file.save", "file.save_as", "print.dialog", "help.about", super::SHARE] {
+        for id in ["file.open", "file.save", "file.save_as", "print.dialog", super::SHARE] {
             assert!(bar.find(&craft_menu::CommandRef::new(id)).is_some(), "{id} stays");
         }
         // Not hosted: the menus are as they were, without Share.
@@ -194,6 +192,30 @@ mod tests {
         assert!(bar.find(&craft_menu::CommandRef::new("create.blank")).is_some());
         assert!(bar.find(&craft_menu::CommandRef::new("file.close")).is_some());
         assert!(bar.find(&craft_menu::CommandRef::new(super::SHARE)).is_none());
+    }
+
+    #[test]
+    fn hosted_has_no_help_menu_and_no_help_command_anywhere() {
+        let (mut app, _, _) = hosted_app();
+        crate::editing::set_host_copies(None);
+        let ctx = egui::Context::default();
+        let bar = app.menu_bar(&ctx);
+        assert!(bar.menus.iter().all(|m| m.title != "Help" && m.role != craft_menu::MenuRole::Help), "no Help menu when hosted");
+        let laid = craft_menu::layout(&bar, craft_menu::Target::Linux, &crate::menus::layout_options()).bar;
+        let help: Vec<_> = pdfcraft_engine::commands::COMMANDS.iter().map(|s| s.id).filter(|id| id.starts_with("help.")).collect();
+        assert!(help.contains(&"help.about") && help.contains(&"help.shortcuts"));
+        for id in &help {
+            assert!(app.hides_command(id), "{id} is hidden (menus, palette, tools, hotbar) when hosted");
+            assert!(laid.find(&craft_menu::CommandRef::new(*id)).is_none(), "{id} is in no menu when hosted");
+        }
+        assert!(!app.execute("help.shortcuts"));
+        assert!(app.dialog.is_none(), "the shortcuts help doesn't open");
+        // Not hosted: the Help menu and its commands are as they were.
+        let mut plain = PdfCraftApp::new();
+        plain.set_option("language", "en").unwrap();
+        let bar = plain.menu_bar(&ctx);
+        assert!(bar.menus.iter().any(|m| m.role == craft_menu::MenuRole::Help));
+        assert!(!plain.hides_command("help.about") && !plain.hides_command("help.shortcuts"));
     }
 
     #[test]
@@ -224,7 +246,11 @@ mod tests {
         assert!(h.query_by_label("Home").is_none());
         assert!(h.query_by_label("Community").is_none());
         assert!(h.query_by_label("Share").is_some());
+        assert!(h.query_by_label("Keyboard shortcuts").is_none(), "no ? help button when hosted");
+        assert!(h.query_by_label("Open").is_none(), "no + Open tab when hosted");
         let h = harness(false);
+        assert!(h.query_by_label("Keyboard shortcuts").is_some());
+        assert!(h.query_by_label("Open").is_some());
         assert!(h.query_by_label("Welcome to ClawPDF").is_some(), "the standalone app keeps its Home screen");
         assert!(h.query_by_label("Home").is_some());
         assert!(h.query_by_label("Share").is_none());

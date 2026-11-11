@@ -374,7 +374,10 @@ impl PdfCraftApp {
         if !self.hosted {
             menus.push(Menu::new(tl!("Window"), window).role(MenuRole::Window));
         }
-        menus.push(Menu::new(tl!("Help"), craft_menu::tidy(help)).role(MenuRole::Help));
+        // Hosted: Clawku owns help, so no Help menu at all (not even About).
+        if !self.hosted {
+            menus.push(Menu::new(tl!("Help"), craft_menu::tidy(help)).role(MenuRole::Help));
+        }
         let documents = if self.hosted { Vec::new() } else { self.menu_documents() };
         let mut bar = MenuBar { menus, documents };
         bar.tag_item(&CommandRef::new("help.about"), ItemRole::About);
