@@ -130,6 +130,10 @@ pub(super) fn pages(ui: &mut egui::Ui, t: &Tokens, info: &DocInfo, view: &mut cr
             let sense = if editable { Sense::click_and_drag() } else { Sense::click() };
             let (rect, resp) = ui.allocate_exact_size(vec2(w + 16.0, h + 16.0), sense);
             rows.push(rect);
+            // A finger dragged over the thumbnails scrolls them; a long press then a drag moves pages.
+            if editable {
+                crate::finger::scroll_here(ui.ctx(), ui.layer_id(), resp.interact_rect);
+            }
             if rect.intersects(ui.clip_rect().expand(200.0)) {
                 view.need_thumbnail(i, rect.intersects(ui.clip_rect()));
             }

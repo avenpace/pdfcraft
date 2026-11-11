@@ -3369,6 +3369,15 @@ fn presentation_click_state(ui: &egui::Ui, view: &DocView, navigation_rect: Rect
     })
 }
 
+/// A finger dragged anywhere over the pages in `avail` (margins and the gaps between pages too)
+/// scrolls them; a tap clicks, and a long press then a drag does what a mouse drag does. Not with
+/// a dialog or the palette over them.
+fn finger_scrolls_pages(ui: &egui::Ui, avail: Rect, unobstructed: bool) {
+    if unobstructed {
+        crate::finger::scroll_here(ui.ctx(), ui.layer_id(), avail);
+    }
+}
+
 /// Pinch / ctrl+scroll zoom, anchored on the pointer or the current page.
 fn pinch_zoom(ui: &egui::Ui, view: &mut DocView, zoom_delta: f32, navigation_rect: Rect, enabled: bool) {
     if zoom_delta.is_finite() && zoom_delta > 0.0 && zoom_delta != 1.0 && enabled && ui.rect_contains_pointer(navigation_rect) {
@@ -3587,6 +3596,7 @@ pub fn document_area(app: &mut PdfCraftApp, index: usize, ui: &mut egui::Ui) {
     let present = presentation_click_state(ui, view, navigation_rect, navigation_enabled && app.quick_tool == QuickTool::Select);
     pinch_zoom(ui, view, zoom_delta, navigation_rect, navigation_enabled);
     view.viewport_screen = avail;
+    finger_scrolls_pages(ui, avail, unobstructed);
     let (auto_delta, edge_delta) = auto_scroll_deltas(ui, view, avail, unobstructed, invert_middle);
 
     let content_w = view.content_width(info, avail.width());
@@ -4122,3 +4132,5 @@ enum FieldMenu {
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod touch_tests;

@@ -132,6 +132,7 @@ pub use persist::window_state;
 use platform::drag_pointer;
 #[cfg(not(target_arch = "wasm32"))]
 pub use platform::file_watch;
+use platform::finger;
 #[cfg(target_os = "macos")]
 use platform::macos_association;
 pub use platform::motion;
@@ -325,6 +326,8 @@ pub struct PdfCraftApp {
     pub animation_effects: motion::AnimationEffects,
     /// Whether the system asked for no animations, and how the desktop app asks it.
     pub motion: motion::Motion,
+    /// The finger gesture in progress on a touch screen (`platform/finger.rs`).
+    pub(crate) fingers: finger::Fingers,
     /// Interface language preference: `auto` (follow the system) or a code from [`i18n::LANGUAGES`].
     pub language: String,
     /// Preferences ▸ Interface size as a factor, or `None` to follow [`Self::system_text_scale`].

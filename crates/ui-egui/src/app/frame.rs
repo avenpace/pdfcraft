@@ -84,6 +84,8 @@ impl PdfCraftApp {
         }
         // Before egui reads this frame's wheel input.
         self.scroll_speed.apply(ctx, raw);
+        // Fingers: a drag scrolls, a tap clicks, a long press selects (before egui reads them).
+        self.filter_fingers(ctx, raw);
         // The native menu's key equivalents.
         if let Some(native) = self.native_menu.as_mut() {
             native.raw_input(raw);

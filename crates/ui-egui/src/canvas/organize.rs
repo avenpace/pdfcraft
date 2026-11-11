@@ -288,6 +288,10 @@ pub(super) fn organize_grid(
     organize_toolbar(view, info, editable, dirty, unobstructed, ui, t);
     let viewport = ui.available_rect_before_wrap();
     view.viewport_screen = viewport;
+    // A finger dragged over the grid scrolls it; a long press then a drag moves pages.
+    if unobstructed {
+        crate::finger::scroll_here(ui.ctx(), ui.layer_id(), viewport);
+    }
     let auto_delta = if unobstructed {
         view.auto_scroll.update(ui, viewport, true, invert_middle)
     } else {

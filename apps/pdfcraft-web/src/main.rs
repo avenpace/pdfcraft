@@ -26,6 +26,10 @@ fn main() {
                 options,
                 Box::new(|cc| {
                     let mut app = PdfCraftApp::new();
+                    // A phone or tablet: its first press is already a finger's (a drag scrolls).
+                    if coarse_pointer() {
+                        app.expect_touch();
+                    }
                     // "printcraft": settings saved under the app's former name, PrintCraft.
                     if let Some(json) = cc.storage.and_then(|s| s.get_string("pdfcraft").or_else(|| s.get_string("printcraft"))) {
                         app.restore(&json);
@@ -124,6 +128,11 @@ fn warn_before_unload(unsaved: std::sync::Arc<std::sync::atomic::AtomicBool>) {
     if window.add_event_listener_with_callback("beforeunload", handler.as_ref().unchecked_ref()).is_ok() {
         handler.forget();
     }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn coarse_pointer() -> bool {
+    web_sys::window().and_then(|w| w.match_media("(pointer: coarse)").ok().flatten()).is_some_and(|m| m.matches())
 }
 
 #[cfg(target_arch = "wasm32")]

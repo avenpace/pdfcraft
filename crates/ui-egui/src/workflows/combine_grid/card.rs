@@ -44,6 +44,8 @@ impl Card {
         let c = self.rect;
         let id = self.id(ui, f);
         let resp = ui.interact(c.shrink(4.0), id, Sense::click_and_drag());
+        // A finger dragged over the cards scrolls them; a long press then a drag moves the card.
+        crate::finger::scroll_here(ui.ctx(), ui.layer_id(), resp.interact_rect);
         let name = f.name.clone();
         // A page card: "Page 3", and the file it belongs to.
         let page_label = self.page.map(|(_, p, _)| crate::i18n::fmt(tl!("Page {label}"), &[("label", &p.saturating_add(1).to_string())]));

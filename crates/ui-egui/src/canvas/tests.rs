@@ -751,7 +751,7 @@ fn text_layers_evict_far_pages_but_keep_visible_and_matches() {
 }
 
 /// A PDF of one line of text on each page, `lines[i]` on page `i`.
-fn text_pages_pdf(lines: &[&str]) -> Vec<u8> {
+pub(super) fn text_pages_pdf(lines: &[&str]) -> Vec<u8> {
     let n = lines.len();
     // 1 catalog, 2 pages, 3 font, then a page and its content stream for each line.
     let mut objects = vec![
