@@ -566,6 +566,11 @@ impl PdfCraftApp {
         let stem = name.trim_end_matches(".pdf").trim_end_matches(".PDF");
         let file = format!("{stem} (print).pdf");
         match crate::editing::download(&file, &bytes) {
+            // Hosted: a new file next to the document in Clawku.
+            Ok(()) if crate::editing::copies_to_host() => {
+                self.notify_fmt("Saved {name} as a new file", &[("name", &file)]);
+                true
+            }
             Ok(()) => {
                 self.notify_fmt("Downloaded {name}", &[("name", &file)]);
                 true

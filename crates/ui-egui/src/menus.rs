@@ -54,6 +54,7 @@ const EXTRA: &[(&str, &str, Option<Shortcut>)] = &[
     (DELETE, "Delete", Some(Shortcut { command: false, shift: false, mac_ctrl: false, key: "Delete" })),
     (SELECT_ALL, "Select all", Some(crate::commands::SELECT_ALL)),
     (NO_RECENT, "No recent files", None),
+    (crate::hosted::SHARE, "Share…", None),
     (ACTUAL_SIZE, "Actual size", Some(crate::commands::ACTUAL_SIZE)),
     (PAGE_LEVEL, "Zoom to page level", Some(crate::commands::PAGE_LEVEL)),
     (FIT_WIDTH, "Fit to width", Some(crate::commands::FIT_WIDTH)),
@@ -116,6 +117,7 @@ const FILE: &[&str] = &[
     SEP,
     "file.save",
     "file.save_as",
+    crate::hosted::SHARE,
     "file.revert",
     SEP,
     "file.close",
@@ -280,12 +282,13 @@ impl PdfCraftApp {
         let mut used: Vec<&str> = Vec::new();
         let list = |ids: &[&'static str], used: &mut Vec<&'static str>| -> Vec<Node> {
             ids.iter()
-                .map(|&id| {
+                .filter_map(|&id| {
                     if id == SEP {
-                        return Node::Separator;
+                        return Some(Node::Separator);
                     }
                     used.push(id);
-                    self.menu_item(id, None)
+                    // Hidden when hosted (Clawku has New, Close, Recent…) or useless in a browser.
+                    (!self.hides_command(id)).then(|| self.menu_item(id, None))
                 })
                 .collect()
         };
@@ -361,17 +364,19 @@ impl PdfCraftApp {
         view.push(Node::Separator);
         view.push(Node::submenu(tl!("Tools"), self.tools_menu(&used)));
         view.extend(list(&["view.palette"], &mut used));
-        let mut bar = MenuBar {
-            menus: vec![
-                Menu::new(tl!("File"), craft_menu::tidy(file)).role(MenuRole::File),
-                Menu::new(tl!("Edit"), craft_menu::tidy(edit)).role(MenuRole::Edit),
-                Menu::new(tl!("View"), craft_menu::tidy(view)).role(MenuRole::View),
-                Menu::new(tl!("Sign"), craft_menu::tidy(sign)),
-                Menu::new(tl!("Window"), window).role(MenuRole::Window),
-                Menu::new(tl!("Help"), craft_menu::tidy(help)).role(MenuRole::Help),
-            ],
-            documents: self.menu_documents(),
-        };
+        let mut menus = vec![
+            Menu::new(tl!("File"), craft_menu::tidy(file)).role(MenuRole::File),
+            Menu::new(tl!("Edit"), craft_menu::tidy(edit)).role(MenuRole::Edit),
+            Menu::new(tl!("View"), craft_menu::tidy(view)).role(MenuRole::View),
+            Menu::new(tl!("Sign"), craft_menu::tidy(sign)),
+        ];
+        // Hosted: one document and no tabs to step through, so no Window menu.
+        if !self.hosted {
+            menus.push(Menu::new(tl!("Window"), window).role(MenuRole::Window));
+        }
+        menus.push(Menu::new(tl!("Help"), craft_menu::tidy(help)).role(MenuRole::Help));
+        let documents = if self.hosted { Vec::new() } else { self.menu_documents() };
+        let mut bar = MenuBar { menus, documents };
         bar.tag_item(&CommandRef::new("help.about"), ItemRole::About);
         bar.tag_item(&CommandRef::new("app.preferences"), ItemRole::Settings);
         craft_menu::apply_state(&mut bar, |command| self.menu_state(ctx, command));
@@ -434,7 +439,7 @@ impl PdfCraftApp {
                     for tool in section.items.iter().filter(|t| t.availability == Availability::Ready) {
                         let actions: &[&'static str] = if tool.actions.is_empty() { std::slice::from_ref(&tool.command) } else { tool.actions };
                         for &id in actions {
-                            if commands::command(id).is_none() || used.contains(&id) || seen.contains(&id) {
+                            if commands::command(id).is_none() || self.hides_command(id) || used.contains(&id) || seen.contains(&id) {
                                 continue;
                             }
                             seen.push(id);
@@ -475,6 +480,7 @@ impl PdfCraftApp {
         let enabled = text
             || match command.id.as_str() {
                 NO_RECENT => false,
+                crate::hosted::SHARE => self.hosted,
                 "file.open_recent" => index.is_none_or(|i| i < self.recent.len()),
                 "file.clear_recent" => !self.recent.is_empty(),
                 DOCUMENT => index.is_some_and(|i| i < self.views.len()),
@@ -538,6 +544,7 @@ impl PdfCraftApp {
                     self.active = Some(i);
                 }
             }
+            crate::hosted::SHARE => self.share(),
             "edit.copy" => self.menu_input.push(egui::Event::Copy),
             CUT => self.menu_input.push(egui::Event::Cut),
             PASTE => ctx.send_viewport_cmd(egui::ViewportCommand::RequestPaste),

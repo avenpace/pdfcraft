@@ -29,3 +29,7 @@ pub type HostDirtyFn = Box<dyn FnMut(bool)>;
 /// Told when a file the host page sent couldn't be opened: `(name, why)` (Clawku shows it and
 /// keeps it on screen; the app's own toast is easy to miss, on a phone above all).
 pub type HostOpenFailedFn = Box<dyn FnMut(&str, &str)>;
+
+/// Asks the host page to share the document (Clawku runs sharing itself): File ▸ Share and the
+/// tab strip's Share button, shown only when hosted.
+pub type HostShareFn = Box<dyn FnMut()>;

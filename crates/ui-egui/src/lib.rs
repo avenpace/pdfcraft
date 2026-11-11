@@ -58,6 +58,7 @@ mod dialogs;
 pub use edit_text_ui::{CropMode, DragTarget, ImageDrag, ImageHandle, ImageSelection};
 mod editing;
 mod home;
+mod hosted;
 mod hotbar;
 mod panels;
 pub use print_ui::{Handling as PrintHandling, OptionsSource, PrintDraft, PrinterSource, Which as PrintWhich, system_printers};
@@ -110,8 +111,9 @@ use dialogs::palette;
 use dialogs::protect;
 use dialogs::standards_ui;
 use dialogs::word_count_ui;
+pub use editing::set_host_copies;
 pub use home::folders_ui;
-pub use hooks::{FailedInbox, HostDirtyFn, HostOpenFailedFn, HostSaveFn, Inbox, OsEvent, OsEventsFn};
+pub use hooks::{FailedInbox, HostDirtyFn, HostOpenFailedFn, HostSaveFn, HostShareFn, Inbox, OsEvent, OsEventsFn};
 use menus::tab_context;
 use panels::all_tools_ui;
 use panels::comments_panel;
@@ -451,6 +453,13 @@ pub struct PdfCraftApp {
     pub host_dirty: Option<HostDirtyFn>,
     /// Reports a file from the host page that couldn't be opened (web, see [`HostOpenFailedFn`]).
     pub host_open_failed: Option<HostOpenFailedFn>,
+    /// Asks the host page to share the document (web, see [`HostShareFn`]).
+    pub host_share: Option<HostShareFn>,
+    /// Hosted in Clawku (`?host=parent&open=host`, framed by a same-origin page): Clawku owns the
+    /// file list, New, Open, Close, sharing and the user's name, so the app shows the one document
+    /// it sent and hides its own ways to make, list or close documents (`hosted.rs`). Set by the
+    /// web app; `false` everywhere else.
+    pub hosted: bool,
     /// A pending "save changes?" question (closing a dirty tab or quitting).
     pub close_request: Option<CloseRequest>,
     /// The button of the "save changes?" question the keyboard has chosen; Save when it opens.

@@ -48,6 +48,13 @@ impl PdfCraftApp {
         let Some(id) = self.views.get(index).map(|v| v.id) else { return false };
         let Some(doc) = self.session.get(id) else { return false };
         let (name, path) = (doc.name.clone(), doc.path.clone());
+        // An embedding page takes the saves on every target (the desktop app never sets one;
+        // tests do, to check what a hosted save sends).
+        #[cfg(not(target_arch = "wasm32"))]
+        if self.host_save.is_some() {
+            let _ = path;
+            return self.save_bytes_away(index, id, &name, target, Box::new(after));
+        }
         #[cfg(not(target_arch = "wasm32"))]
         {
             let doc_path = path.clone();
@@ -72,46 +79,61 @@ impl PdfCraftApp {
         #[cfg(target_arch = "wasm32")]
         {
             let _ = path;
-            if !self.flatten_fill_sign_for_save(id) {
+            self.save_bytes_away(index, id, &name, target, Box::new(after))
+        }
+    }
+
+    /// Save on the web, and wherever an embedding page takes the saves: the bytes go to the page
+    /// ([`Self::host_save`], `?host=parent`) under the document's own name, with `save_as` for
+    /// Save As (the page asks for the new name itself), or else the browser downloads them.
+    fn save_bytes_away(
+        &mut self,
+        index: usize,
+        id: pdfcraft_engine::DocId,
+        name: &str,
+        target: SaveTarget,
+        after: Box<dyn FnOnce(&mut Self) + Send>,
+    ) -> bool {
+        if !self.flatten_fill_sign_for_save(id) {
+            return false;
+        }
+        let bytes = match self.session.save_bytes(id) {
+            Ok(b) => b,
+            Err(e) => {
+                self.notify_fmt("Couldn't save {name}: {e}", &[("name", name), ("e", &e.to_string())]);
                 return false;
             }
-            let bytes = match self.session.save_bytes(id) {
-                Ok(b) => b,
-                Err(e) => {
-                    self.notify_fmt("Couldn't save {name}: {e}", &[("name", &name), ("e", &e.to_string())]);
-                    return false;
+        };
+        let to_host = self.host_save.is_some();
+        let delivered = match &self.host_save {
+            Some(save) => save(name, &bytes, matches!(target, SaveTarget::As)),
+            #[cfg(target_arch = "wasm32")]
+            None => download(name, &bytes),
+            #[cfg(not(target_arch = "wasm32"))]
+            None => Err("no page to save to".to_string()),
+        };
+        match delivered {
+            Ok(()) => {
+                let _ = self.session.mark_saved(id, bytes, None);
+                if let Some(doc) = self.session.get(id)
+                    && let Some(view) = self.views.get_mut(index)
+                {
+                    view.document_changed(&doc.info);
                 }
-            };
-            // An embedding page that asked for saves (`?host=parent`) gets the bytes; otherwise
-            // the browser downloads them.
-            let to_host = self.host_save.is_some();
-            let delivered = match &self.host_save {
-                Some(save) => save(&name, &bytes, matches!(target, SaveTarget::As)),
-                None => download(&name, &bytes),
-            };
-            match delivered {
-                Ok(()) => {
-                    let _ = self.session.mark_saved(id, bytes, None);
-                    if let Some(doc) = self.session.get(id)
-                        && let Some(view) = self.views.get_mut(index)
-                    {
-                        view.document_changed(&doc.info);
-                    }
-                    // The host reports where the file went (and any failure) itself.
-                    if !to_host {
-                        self.notify_fmt("Downloaded {name}", &[("name", &name)]);
-                    }
-                    after(self);
-                    true
+                // The host reports where the file went (and any failure) itself.
+                if !to_host {
+                    self.notify_fmt("Downloaded {name}", &[("name", name)]);
                 }
-                Err(e) if to_host => {
-                    self.notify_fmt("Couldn't save {name}: {e}", &[("name", &name), ("e", &e)]);
-                    false
-                }
-                Err(e) => {
-                    self.notify_fmt("Couldn't download {name}: {e}", &[("name", &name), ("e", &e.to_string())]);
-                    false
-                }
+                after(self);
+                true
+            }
+            Err(e) if to_host => {
+                self.notify_fmt("Couldn't save {name}: {e}", &[("name", name), ("e", &e)]);
+                false
+            }
+            Err(e) => {
+                self.notify_fmt("Couldn't download {name}: {e}", &[("name", name), ("e", &e.to_string())]);
+                false
             }
         }
     }
@@ -287,6 +309,10 @@ fn short_name(path: &str) -> String {
 #[cfg(target_arch = "wasm32")]
 pub(crate) fn download(name: &str, bytes: &[u8]) -> Result<(), String> {
     use wasm_bindgen::JsCast;
+    // Hosted in Clawku: a new file next to the document instead (`set_host_copies`).
+    if let Some(sent) = send_copy(name, bytes) {
+        return sent;
+    }
     let err = |e: wasm_bindgen::JsValue| format!("{e:?}");
     let array = js_sys::Uint8Array::from(bytes);
     let parts = js_sys::Array::of1(&array);
@@ -301,4 +327,58 @@ pub(crate) fn download(name: &str, bytes: &[u8]) -> Result<(), String> {
     a.click();
     let _ = web_sys::Url::revoke_object_url(&url);
     Ok(())
+}
+
+thread_local! {
+    /// Where generated files go instead of a browser download ([`set_host_copies`]).
+    static HOST_COPIES: std::cell::RefCell<Option<crate::HostSaveFn>> = const { std::cell::RefCell::new(None) };
+    /// The open documents' names, so a copy never takes one ([`note_open_names`]).
+    static OPEN_NAMES: std::cell::RefCell<Vec<String>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// Clawku (`?host=parent&open=host`): every file the app makes besides the document itself
+/// (exports, Print ▸ Save as PDF, Reduce size, Extract and Split, OCR and action results, data
+/// and measurement exports, attachments, and the results of Combine and Create) goes to the host
+/// page as a new file next to the document: `save(name, bytes, false)` under a name no open
+/// document has, never as a browser download the host would not see. `None` restores downloads.
+/// Set by the web app; per thread (the browser has one).
+pub fn set_host_copies(save: Option<crate::HostSaveFn>) {
+    HOST_COPIES.with(|c| *c.borrow_mut() = save);
+}
+
+/// Whether generated files go to the host page ([`set_host_copies`]).
+pub(crate) fn copies_to_host() -> bool {
+    HOST_COPIES.with(|c| c.borrow().is_some())
+}
+
+/// The names of the documents open now; a copy sent to the host gets another name.
+pub(crate) fn note_open_names(names: Vec<String>) {
+    OPEN_NAMES.with(|n| *n.borrow_mut() = names);
+}
+
+/// Send `bytes` to the host page as a new file ([`set_host_copies`]); `None` when there is no
+/// host to send to (the caller downloads or writes instead).
+pub(crate) fn send_copy(name: &str, bytes: &[u8]) -> Option<Result<(), String>> {
+    let name = OPEN_NAMES.with(|n| copy_name(name, &n.borrow()));
+    HOST_COPIES.with(|c| c.borrow().as_ref().map(|save| save(&name, bytes, false)))
+}
+
+/// `name`, or `name (copy).ext`, `name (copy 2).ext`… when an open document is called that
+/// (ignoring case): a copy stored under the document's name would overwrite it on the host.
+pub(crate) fn copy_name(name: &str, taken: &[String]) -> String {
+    let free = |candidate: &str| !taken.iter().any(|t| t.to_lowercase() == candidate.to_lowercase());
+    if free(name) {
+        return name.to_string();
+    }
+    let (stem, ext) = match name.rsplit_once('.') {
+        Some((stem, ext)) if !stem.is_empty() => (stem, format!(".{ext}")),
+        _ => (name, String::new()),
+    };
+    for n in 1..1000u32 {
+        let candidate = if n == 1 { format!("{stem} (copy){ext}") } else { format!("{stem} (copy {n}){ext}") };
+        if free(&candidate) {
+            return candidate;
+        }
+    }
+    format!("{stem} (copy {}){ext}", taken.len().saturating_add(1000))
 }

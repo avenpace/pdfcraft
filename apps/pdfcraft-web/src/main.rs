@@ -62,10 +62,16 @@ fn main() {
                     if query_param("host").as_deref() == Some("parent")
                         && let Some(bridge) = host::Bridge::new()
                     {
-                        // `?author=`: the host's name for the user signs their comments,
-                        // unless they chose a name in PdfCraft (the web default is "Guest").
+                        // `&open=host` too: hosted in Clawku, which owns the file list, New, Open,
+                        // Close, sharing and the user's name. The app shows the one document Clawku
+                        // sends (`PdfCraftApp::hosted`), and every file it makes besides that
+                        // document goes to Clawku as a new file instead of a download.
+                        let hosted = query_param("open").as_deref() == Some("host");
+                        // `?author=`: the host's name for the user signs their comments. Hosted, it
+                        // always wins (there is no name to choose in the app); otherwise only over
+                        // the web default, "Guest", so a name chosen in PdfCraft stays.
                         if let Some(author) = query_param("author").map(|a| a.trim().to_string()).filter(|a| !a.is_empty())
-                            && app.comment_prefs.author == "Guest"
+                            && (hosted || app.comment_prefs.author == "Guest")
                         {
                             app.comment_prefs.author = author.chars().take(200).collect();
                         }
@@ -73,6 +79,11 @@ fn main() {
                         app.host_save = Some(bridge.save_fn());
                         app.host_dirty = Some(bridge.dirty_fn());
                         app.host_open_failed = Some(bridge.open_failed_fn());
+                        if hosted {
+                            app.hosted = true;
+                            app.host_share = Some(bridge.share_fn());
+                            pdfcraft_ui_egui::set_host_copies(Some(bridge.save_fn()));
+                        }
                         bridge.post_ready();
                     } else if query_param("host").as_deref() == Some("parent") {
                         eframe::web_sys::console::warn_1(
@@ -142,7 +153,10 @@ async fn fetch_bytes(url: &str) -> Result<Vec<u8>, String> {
 ///   `Uint8Array` holding a PDF. It opens in a tab, like a `?file=` URL.
 /// - `pdfcraft:save` (to the parent): `{ name, saveAs, bytes }` when the user saves; `bytes` is
 ///   a transferred `ArrayBuffer`. The parent stores the file (and reports its own errors).
+///   Hosted (`&open=host`), files the app makes besides the document (exports, copies, results)
+///   come the same way with `saveAs: false` and a name no open document has: a new file.
 /// - `pdfcraft:dirty` (to the parent): `{ dirty }` whenever unsaved work appears or goes away.
+/// - `pdfcraft:share` (to the parent, hosted only): the user asked to share the document.
 /// - `pdfcraft:failed` (to the parent): `{ error }` when the app couldn't start.
 ///
 /// Only the parent window on the app's own origin is heard or answered. With a parent on
@@ -245,6 +259,16 @@ mod host {
             let bridge = self.clone();
             Box::new(move |name: &str, why: &str| {
                 if let Some(m) = message(&[("type", "pdfcraft:openFailed".into()), ("name", name.into()), ("message", why.into())]) {
+                    let _ = bridge.post(&m, None);
+                }
+            })
+        }
+
+        /// `pdfcraft:share`: File ▸ Share or the tab strip's Share button (hosted only).
+        pub fn share_fn(&self) -> pdfcraft_ui_egui::HostShareFn {
+            let bridge = self.clone();
+            Box::new(move || {
+                if let Some(m) = message(&[("type", "pdfcraft:share".into())]) {
                     let _ = bridge.post(&m, None);
                 }
             })

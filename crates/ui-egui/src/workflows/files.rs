@@ -877,6 +877,10 @@ impl PdfCraftApp {
     }
 
     pub(crate) fn open_created(&mut self, name: &str, bytes: Arc<Vec<u8>>, message: &str) {
+        // Hosted: the result is a new file next to the document, not an untracked tab.
+        if self.created_to_host(name, &bytes) {
+            return;
+        }
         match self.session.open_new(name, bytes) {
             Ok(id) => {
                 // The reading-colours preference is app-wide: the newly created document starts with it.

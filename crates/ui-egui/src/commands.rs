@@ -79,6 +79,9 @@ impl PdfCraftApp {
     /// Whether a registered command can run now. The engine judges the document (security,
     /// contents, undo history); view state it can't see is checked here.
     pub(crate) fn command_enabled(&self, spec: &CommandSpec) -> bool {
+        if self.hides_command(spec.id) {
+            return false;
+        }
         // Undo and Redo act on the Combine files list while its tab shows.
         if self.combine_showing() && matches!(spec.needs, commands::Needs::Undo | commands::Needs::Redo) {
             return self.combine_can_undo(spec.needs == commands::Needs::Undo);
@@ -156,6 +159,10 @@ impl PdfCraftApp {
 
     fn execute_unguarded(&mut self, id: &str) -> bool {
         let Some(spec) = commands::command(id) else { return false };
+        // Hidden when hosted (or useless in a browser): a shortcut or script can't reach it either.
+        if self.hides_command(spec.id) {
+            return false;
+        }
         if !self.command_enabled(spec) {
             let why = self.disabled_reason(spec);
             self.notify(why);

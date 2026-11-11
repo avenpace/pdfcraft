@@ -149,7 +149,7 @@ fn matches_search(spec: &pdfcraft_engine::commands::CommandSpec, query: &str) ->
 /// Render the configured custom tool shortcut buttons and their removal context menus.
 fn tool_buttons(ui: &mut egui::Ui, app: &PdfCraftApp, tools: &[String], cell: f32, run: &mut Option<&'static str>, remove: &mut Option<usize>) {
     for (index, id) in tools.iter().enumerate() {
-        let Some(spec) = command(id) else { continue };
+        let Some(spec) = command(id).filter(|s| !app.hides_command(s.id)) else { continue };
         let active = crate::comments::CommentTool::from_command(id).is_some_and(|tool| app.quick_tool == crate::QuickTool::Comment(tool));
         let button = ui.add_enabled_ui(app.command_enabled(spec), |ui| icons::button(ui, spec.icon, cell, active, tl!(spec.label))).inner;
         if button.clicked() {
@@ -400,6 +400,8 @@ fn segmented_dock_picker(ui: &mut egui::Ui, bar: &mut Hotbar, t: &Tokens) {
 pub(crate) fn show(app: &mut PdfCraftApp, area: Rect, page_left: Option<f32>, ui: &mut egui::Ui) {
     let ctx = ui.ctx().clone();
     let mut bar = std::mem::take(&mut app.hotbar);
+    // Commands hidden when hosted (or useless in a browser) can't be added to the hotbar either.
+    let hidden: Vec<&'static str> = COMMANDS.iter().filter(|s| app.hides_command(s.id)).map(|s| s.id).collect();
     bar.normalize();
     let t = Tokens::get(&ctx);
     let id = egui::Id::unique("quick-bar");
@@ -693,7 +695,7 @@ pub(crate) fn show(app: &mut PdfCraftApp, area: Rect, page_left: Option<f32>, ui
             egui::ScrollArea::vertical().max_height(max_list_height).auto_shrink([false, false]).show(ui, |ui| {
                 ui.spacing_mut().item_spacing.y = 5.0;
                 for spec in COMMANDS {
-                    if !matches_search(spec, &bar.search) {
+                    if hidden.contains(&spec.id) || !matches_search(spec, &bar.search) {
                         continue;
                     }
                     let mut selected = bar.tools.iter().any(|id| id == spec.id);

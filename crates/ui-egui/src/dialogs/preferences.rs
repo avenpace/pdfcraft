@@ -782,10 +782,14 @@ fn scrolling(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens, ctx: &mut Pre
 
 /// Content for Card 4: Identity
 fn card_identity(ui: &mut egui::Ui, app: &mut PdfCraftApp, t: &Tokens, ctx: &mut PrefSearchContext) {
-    ui.horizontal(|ui| {
-        let label = ctx.label_primary(ui, tl!("Name on new comments"), t);
-        ui.add(crate::widgets::line(&mut app.comment_prefs.author).desired_width(240.0).char_limit(crate::MAX_AUTHOR_CHARS)).labelled_by(label.id);
-    });
+    // Hosted: the name comes from Clawku (`?author=`), so there is none to type here.
+    if !app.hosted {
+        ui.horizontal(|ui| {
+            let label = ctx.label_primary(ui, tl!("Name on new comments"), t);
+            ui.add(crate::widgets::line(&mut app.comment_prefs.author).desired_width(240.0).char_limit(crate::MAX_AUTHOR_CHARS))
+                .labelled_by(label.id);
+        });
+    }
     ctx.checkbox(ui, &mut app.comment_prefs.hide_empty_highlight_hover, tl!("Hide hover previews for highlights without comment text"), t);
 }
 

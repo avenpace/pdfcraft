@@ -448,7 +448,7 @@ fn dialog_body(ui: &mut egui::Ui, app: &mut PdfCraftApp, dialog: Dialog, req: &m
             }
         }
         Dialog::About => {
-            if !dialog_about(ui, req) {
+            if !dialog_about(ui, req, app.hosted) {
                 return false;
             }
         }
@@ -1543,7 +1543,8 @@ fn dialog_shortcuts(ui: &mut egui::Ui) -> bool {
 }
 
 /// `Dialog::About` content. Returns `false` when it has its own buttons and no footer is wanted.
-fn dialog_about(ui: &mut egui::Ui, req: &mut Pending) -> bool {
+/// Hosted: the product name and version stay; the ArtCraft and community links go.
+fn dialog_about(ui: &mut egui::Ui, req: &mut Pending, hosted: bool) -> bool {
     let t = Tokens::get(ui.ctx());
     // Tabs About · Contributors · Models.
     let tab_id = egui::Id::unique("about_tab");
@@ -1578,14 +1579,16 @@ fn dialog_about(ui: &mut egui::Ui, req: &mut Pending) -> bool {
                 .color(t.text_muted)
                 .small(),
             );
-            ui.add_space(12.0);
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new(tl!("Part of")).color(t.text_muted));
-                widgets::artcraft_logo(ui, 16.0);
-            });
-            ui.add_space(6.0);
-            if let Some(cmd) = widgets::community_links(ui) {
-                req.link_command = Some(cmd);
+            if !hosted {
+                ui.add_space(12.0);
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new(tl!("Part of")).color(t.text_muted));
+                    widgets::artcraft_logo(ui, 16.0);
+                });
+                ui.add_space(6.0);
+                if let Some(cmd) = widgets::community_links(ui) {
+                    req.link_command = Some(cmd);
+                }
             }
         }
     }

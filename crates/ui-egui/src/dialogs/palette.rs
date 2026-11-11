@@ -58,6 +58,10 @@ pub fn show(app: &mut PdfCraftApp, ctx: &egui::Context) {
     let mut hits: Vec<(usize, Hit)> = Vec::new();
     let active = app.active_ids().map(|(_, id)| id);
     for spec in pdfcraft_engine::commands::COMMANDS {
+        // Hidden when hosted (or useless in a browser), as in the menus.
+        if app.hides_command(spec.id) {
+            continue;
+        }
         let label = pdfcraft_engine::commands::current_label(spec, &app.session, active);
         let translated = crate::i18n::command_label(&label);
         if let Some(s) = score(&translated, &q).or_else(|| score(&label, &q)).or_else(|| score(spec.id, &q).map(|s| s + 50)) {

@@ -388,6 +388,10 @@ impl PdfCraftApp {
         match (data, open) {
             (Err(e), _) => self.notify_fmt("Couldn't read {name}: {e}", &[("name", &att.name), ("e", &e.to_string())]),
             (Ok(bytes), true) => {
+                // Hosted: a file next to the document in Clawku, not a second tab.
+                if self.created_to_host(&crate::files::attachment_file_name(&att.name), &bytes) {
+                    return;
+                }
                 // The tab name later names files written from the tab (Split, Extract pages).
                 if let Err(e) = self.open_bytes(&crate::files::attachment_file_name(&att.name), None, bytes) {
                     self.notify_fmt("Couldn't open {name}: {e}", &[("name", &att.name), ("e", &e.to_string())]);
@@ -403,8 +407,15 @@ impl PdfCraftApp {
                         Err(e) => app.notify_fmt("Couldn't save: {e}", &[("e", &e.to_string())]),
                     },
                 );
+                // Hosted: the attachment becomes a file next to the document in Clawku.
                 #[cfg(target_arch = "wasm32")]
-                self.notify_fmt("Downloading attachments on the web arrives with M3.10 ({n} bytes ready)", &[("n", &bytes.len().to_string())]);
+                match crate::editing::send_copy(&crate::files::attachment_file_name(&att.name), &bytes) {
+                    Some(Ok(())) => self.notify_fmt("Saved {name} as a new file", &[("name", &crate::files::attachment_file_name(&att.name))]),
+                    Some(Err(e)) => self.notify_fmt("Couldn't save: {e}", &[("e", &e)]),
+                    None => {
+                        self.notify_fmt("Downloading attachments on the web arrives with M3.10 ({n} bytes ready)", &[("n", &bytes.len().to_string())])
+                    }
+                }
             }
         }
     }

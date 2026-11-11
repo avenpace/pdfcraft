@@ -65,13 +65,19 @@ pub fn tab_strip(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                     });
                     ui.add_space(window_controls::SIDE_GAP - 4.0);
                 }
-                if icons::button(ui, "house", button, app.active.is_none() && !app.combine_showing(), tl!("Home")).clicked() {
+                // Hosted: Clawku has the file list, so there is no Home screen to go to.
+                let hosted = app.hosted;
+                if !hosted && icons::button(ui, "house", button, app.active.is_none() && !app.combine_showing(), tl!("Home")).clicked() {
                     app.active = None;
                     app.combine_tab.focused = false;
                 }
-                // Reserve the three icon buttons, Discord and their gaps outside the scrolling tabs.
-                // Phones: no Community button, so the tabs and Open have the room (Clawku)
-                let community_width = if ui.ctx().content_rect().width() < 600.0 {
+                // Reserve the three icon buttons, Discord (Share when hosted) and their gaps outside
+                // the scrolling tabs. Phones: no Community button, so the tabs and Open have the
+                // room (Clawku); Share stays, as an icon only.
+                let narrow = ui.ctx().content_rect().width() < 600.0;
+                let community_width = if hosted {
+                    if narrow { button - 16.0 } else { ui.fonts_mut(|f| f.layout_no_wrap(tl!("Share").into(), theme::medium(13.0), t.text).size().x) }
+                } else if narrow {
                     -20.0
                 } else {
                     ui.fonts_mut(|f| f.layout_no_wrap("Community".into(), theme::medium(13.0), t.text).size().x)
@@ -151,7 +157,9 @@ pub fn tab_strip(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                                         index: i,
                                         cap,
                                         height: tab_h,
-                                        draggable: true,
+                                        // Hosted: the document Clawku sent stays put and open.
+                                        draggable: !hosted,
+                                        closable: !hosted,
                                     },
                                     &mut close,
                                 );
@@ -164,27 +172,33 @@ pub fn tab_strip(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                                 }
                                 let id = app.views[i].id;
                                 let reveal = cfg!(not(target_arch = "wasm32")) && doc.path.is_some();
-                                response.context_menu(|ui| {
+                                // Hosted: no tab menu (Clawku closes and reopens files). In a
+                                // browser there is no file to reveal or reopen from.
+                                let desktop = cfg!(not(target_arch = "wasm32"));
+                                let menu = |ui: &mut egui::Ui| {
                                     if ui.button(tl!("Close Tab")).clicked() {
                                         action = Some(crate::tab_context::Action::Close(id));
                                         ui.close();
                                     }
-                                    if ui.add_enabled(!app.closed_tabs.is_empty(), egui::Button::new(tl!("Reopen Closed Tab"))).clicked() {
+                                    if desktop && ui.add_enabled(!app.closed_tabs.is_empty(), egui::Button::new(tl!("Reopen Closed Tab"))).clicked() {
                                         action = Some(crate::tab_context::Action::Reopen);
                                         ui.close();
                                     }
                                     let label = if cfg!(target_os = "macos") { tl!("Reveal in Finder") } else { tl!("Reveal in File Explorer") };
-                                    if ui.add_enabled(reveal, egui::Button::new(label)).clicked() {
+                                    if desktop && ui.add_enabled(reveal, egui::Button::new(label)).clicked() {
                                         action = Some(crate::tab_context::Action::Reveal(id));
                                         ui.close();
                                     }
-                                });
+                                };
+                                if !hosted {
+                                    response.context_menu(menu);
+                                }
                                 if response.clicked() {
                                     app.active = Some(i);
                                 }
                                 // A middle click closes the tab, as in Acrobat and browsers (#1853);
                                 // unsaved changes ask first, as the close button does.
-                                if response.middle_clicked() {
+                                if response.middle_clicked() && !hosted {
                                     close = Some(i);
                                 }
                             }
@@ -236,6 +250,7 @@ pub fn tab_strip(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                                         cap,
                                         height: tab_h,
                                         draggable: false,
+                                        closable: true,
                                     },
                                     &mut close,
                                 );
@@ -315,8 +330,18 @@ pub fn tab_strip(app: &mut PdfCraftApp, ui: &mut egui::Ui) {
                     if icons::button(ui, "circle-help", button, false, tl!("Keyboard shortcuts")).clicked() {
                         app.dialog = Some(Dialog::Shortcuts);
                     }
-                    // One click to the community, from anywhere in the app.
-                    if ui.ctx().content_rect().width() >= 600.0
+                    if hosted {
+                        // Hosted: Clawku shares the document (`pdfcraft:share`).
+                        let share = if ui.ctx().content_rect().width() >= 600.0 {
+                            widgets::ghost_button_sized(ui, "share-2", tl!("Share"), tab_h)
+                        } else {
+                            icons::button(ui, "share-2", button, false, tl!("Share"))
+                        };
+                        if share.on_hover_text(tl!("Share this document")).clicked() {
+                            app.share();
+                        }
+                    } else if ui.ctx().content_rect().width() >= 600.0
+                        // One click to the community, from anywhere in the app.
                         && widgets::ghost_button_sized(ui, "messages-square", "Community", tab_h).on_hover_text(pdfcraft_engine::links::DISCORD).clicked()
                     {
                         app.execute("help.discord");
@@ -424,10 +449,12 @@ struct TabSpec<'a> {
     cap: Option<f32>,
     height: f32,
     draggable: bool,
+    /// Draws the close button (and its unsaved dot otherwise); `false` for the hosted document.
+    closable: bool,
 }
 
 fn tab(ui: &mut egui::Ui, spec: TabSpec<'_>, close: &mut Option<usize>) -> egui::Response {
-    let TabSpec { id, theme: t, icon, name, file, dirty, active, index, cap, height, draggable } = spec;
+    let TabSpec { id, theme: t, icon, name, file, dirty, active, index, cap, height, draggable, closable } = spec;
     let font = theme::regular(13.0);
     let mut label = tab_name(name);
     // A shrunk tab shows as much of its name as fits (the tooltip has all of it).
@@ -466,17 +493,22 @@ fn tab(ui: &mut egui::Ui, spec: TabSpec<'_>, close: &mut Option<usize>) -> egui:
         ui.painter().galley(rect.min + vec2(28.0, (rect.height() - label_galley.size().y) / 2.0), label_galley.clone(), label_color);
     });
     let x_rect = Rect::from_center_size(rect.right_center() - vec2(16.0, 0.0), vec2(20.0, 20.0));
-    let x = ui.interact(x_rect, id.with("close"), Sense::click());
-    let x_press = theme::Press::track(ui, &x);
-    x_press.wash(ui, x_rect, 4, false);
-    // Unsaved changes: a dot where the close button sits, until the tab is hovered.
-    if dirty && !resp.hovered() && !x.hovered() {
+    if closable {
+        let x = ui.interact(x_rect, id.with("close"), Sense::click());
+        let x_press = theme::Press::track(ui, &x);
+        x_press.wash(ui, x_rect, 4, false);
+        // Unsaved changes: a dot where the close button sits, until the tab is hovered.
+        if dirty && !resp.hovered() && !x.hovered() {
+            ui.painter().circle_filled(x_rect.center(), 4.0, if active { t.text } else { t.text_muted });
+        } else if active || resp.hovered() || x.hovered() {
+            icons::paint(ui, x_rect.translate(x_press.offset()), "x", 13.0, t.text_muted);
+        }
+        if theme::hand(x).clicked() {
+            *close = Some(index);
+        }
+    } else if dirty {
+        // No close button: the unsaved dot stays.
         ui.painter().circle_filled(x_rect.center(), 4.0, if active { t.text } else { t.text_muted });
-    } else if active || resp.hovered() || x.hovered() {
-        icons::paint(ui, x_rect.translate(x_press.offset()), "x", 13.0, t.text_muted);
-    }
-    if theme::hand(x).clicked() {
-        *close = Some(index);
     }
     let shown = match file {
         Some(file) => format!("{name}\n{file}"),

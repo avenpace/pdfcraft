@@ -252,6 +252,10 @@ fn tool_detail(app: &mut PdfCraftApp, ui: &mut egui::Ui, t: &Tokens, g: &'static
         for s in g.sections {
             widgets::section_title(ui, tl!(s.title));
             for item in s.items {
+                // Hidden when hosted (Create ▸ Blank page…) or useless in a browser.
+                if app.hides_command(item.command) {
+                    continue;
+                }
                 if g.id == "fill_sign" && (item.command.starts_with("sign.fill.signature") || item.command.starts_with("sign.fill.initials")) {
                     continue;
                 }

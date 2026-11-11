@@ -171,6 +171,8 @@ impl PdfCraftApp {
             host_save: None,
             host_dirty: None,
             host_open_failed: None,
+            host_share: None,
+            hosted: false,
             close_request: None,
             save_prompt_button: Default::default(),
             save_prompt_seen: false,
@@ -579,6 +581,7 @@ impl eframe::App for PdfCraftApp {
         // Reload documents whose files a build rewrote (#431).
         #[cfg(not(target_arch = "wasm32"))]
         self.watch_files();
+        self.note_hosted_names();
         if self.host_dirty.is_some() {
             let dirty = self.first_dirty().is_some();
             if let Some(report) = self.host_dirty.as_mut() {
@@ -697,6 +700,9 @@ impl eframe::App for PdfCraftApp {
             } else {
                 match self.active {
                     None if self.combine_showing() => combine_ui::page(self, ui),
+                    // Hosted: no Home screen, not even before the host's file arrives (Clawku
+                    // shows its own file list); the empty pasteboard until then.
+                    None if self.hosted => {}
                     None => home::show(self, ui),
                     Some(index) => match compare_ui::side_by_side(self, index) {
                         Some((old, new)) => compare_ui::compare_area(self, old, new, ui),

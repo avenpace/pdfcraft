@@ -91,7 +91,11 @@ impl PdfCraftApp {
                 self.notify_fmt("Wrote {n} files to {dir}", &[("n", &made.to_string()), ("dir", &dir.display().to_string())]);
             }
             #[cfg(target_arch = "wasm32")]
-            self.notify(crate::i18n::trn(crate::i18n::current(), made as u64, "Downloaded {n} PDF", "Downloaded {n} PDFs"));
+            if crate::editing::copies_to_host() {
+                self.notify(crate::i18n::trn(crate::i18n::current(), made as u64, "Saved {n} PDF as a new file", "Saved {n} PDFs as new files"));
+            } else {
+                self.notify(crate::i18n::trn(crate::i18n::current(), made as u64, "Downloaded {n} PDF", "Downloaded {n} PDFs"));
+            }
         }
         if !refused.is_empty() {
             self.notify(crate::i18n::fmt(tl!("Left out: {names}"), &[("names", &refused.join(", "))]));

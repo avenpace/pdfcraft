@@ -12,11 +12,15 @@ mod save;
 pub use close::CloseRequest;
 #[cfg(not(target_arch = "wasm32"))]
 pub use save::PendingOverwrite;
+#[cfg(test)]
+pub(crate) use save::copy_name;
 #[cfg(target_arch = "wasm32")]
 pub(crate) use save::download;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) use save::in_document_folder;
+pub use save::set_host_copies;
 pub use save::{SaveTarget, write_atomically};
+pub(crate) use save::{copies_to_host, note_open_names, send_copy};
 #[cfg(test)]
 pub(crate) use save::{is_mail_temp_copy, save_dialog_folder};
 #[cfg(test)]
